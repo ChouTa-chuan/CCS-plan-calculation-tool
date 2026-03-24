@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCS 補助計畫「目標與規模」決策支援工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .slider-thumb::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #2563eb;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        .metric-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+        }
+        .summary-card {
+            background-color: #1e293b; /* slate-900 */
+            color: white;
+        }
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        /* 強制表格欄位等寬 */
+        .comparison-table {
+            table-layout: fixed;
+            width: 100%;
+        }
+        /* 自定義圖例樣式 */
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            display: inline-block;
+            margin-right: 6px;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between border-b border-gray-300 pb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-800 text-pretty">CCS 補助計畫「目標與規模」決策支援工具</h1>
+                <p class="text-slate-500 mt-1">決策支援工具 v1.13 (Grouped Legend Edition)</p>
+            </div>
+            <div class="mt-4 md:mt-0 flex space-x-2">
+                <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">決策支援</span>
+                <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">2050 淨零路徑對齊</span>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Sidebar: Inputs -->
+            <div class="lg:col-span-1 space-y-6">
+                <div class="card p-6 border-t-4 border-blue-600 shadow-lg">
+                    <h2 class="text-xl font-bold mb-4 text-slate-700">計畫核心設定</h2>
+                    
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2 font-bold">試算邏輯</label>
+                        <div class="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-lg">
+                            <button id="modeBudget" class="py-2 text-sm font-medium rounded-md bg-white shadow-sm text-blue-600 transition-all">預算導向</button>
+                            <button id="modeTarget" class="py-2 text-sm font-medium rounded-md text-gray-500 hover:text-gray-700 transition-all">目標導向</button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div id="inputBudgetContainer">
+                            <label class="block text-sm font-bold text-gray-700">總預算上限 (仟元 TWD)</label>
+                            <input type="number" id="inputTotalBudget" value="10000000" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border">
+                            <p id="dynamicBudgetRemark" class="text-[11px] text-blue-600 font-medium mt-1">註：10,000,000 仟元 = 100 億元</p>
+                            <input type="range" id="sliderTotalBudget" min="100000" max="50000000" step="100000" value="10000000" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-3 slider-thumb">
+                        </div>
+
+                        <div id="inputTargetContainer" class="hidden">
+                            <label class="block text-sm font-bold text-gray-700">目標捕捉量 (萬公噸/年)</label>
+                            <input type="number" id="inputTargetCapture" value="50" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border">
+                            <input type="range" id="sliderTargetCapture" min="1" max="500" step="1" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-3 slider-thumb">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700">計畫年限 (Years)</label>
+                            <input type="number" id="inputYears" value="15" min="1" max="20" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border">
+                            <input type="range" id="sliderYears" min="1" max="20" step="1" value="15" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-3 slider-thumb">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">模型選擇</label>
+                            <div class="space-y-2">
+                                <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors border-blue-200 bg-blue-50" id="labelBD3">
+                                    <input type="radio" name="benchmark" value="BD3" checked class="h-4 w-4 text-blue-600">
+                                    <div class="flex-1">
+                                        <div class="text-sm font-bold text-slate-800">Boundary Dam 3 (BD3)</div>
+                                        <div class="text-[10px] text-slate-500 uppercase tracking-tight">高單位成本, 技術成熟度高</div>
+                                    </div>
+                                </label>
+                                <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors border-gray-200" id="labelPetra">
+                                    <input type="radio" name="benchmark" value="PetraNova" class="h-4 w-4 text-blue-600">
+                                    <div class="flex-1">
+                                        <div class="text-sm font-bold text-slate-800">Petra Nova</div>
+                                        <div class="text-[10px] text-slate-500 uppercase tracking-tight">大規模最佳化, 較低 LCOE</div>
+                                    </div>
+                                </label>
+                                <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors border-gray-200" id="labelEstimate">
+                                    <input type="radio" name="benchmark" value="ESTIMATE" class="h-4 w-4 text-blue-600">
+                                    <div class="flex-1">
+                                        <div class="text-sm font-bold text-slate-800">推估模型</div>
+                                        <div class="text-[10px] text-slate-500 uppercase tracking-tight">自定義建置成本, OPEX基準</div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="estimateParams" class="hidden p-4 bg-slate-100 rounded-lg border border-slate-300 space-y-4 shadow-inner">
+                            <h3 class="text-sm font-bold text-blue-800 border-b border-blue-200 pb-1">推估模型客製化參數</h3>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600">單位建置成本 (NTD/噸-年)</label>
+                                <input type="number" id="customUnitCapex" value="10200" class="mt-1 block w-full border-gray-300 rounded p-1 text-sm border">
+                                <p class="text-[10px] text-slate-500 mt-1">BD3單位建置成本：10,200 台幣/噸-年</p>
+                            </div>
+                            <div class="grid grid-cols-1 gap-2">
+                                <label class="block text-[11px] font-bold text-slate-600">CAPEX 占比分配 (%)</label>
+                                <div class="flex items-center space-x-2">
+                                    <input type="number" id="capexPlantPct" value="70" class="w-14 border rounded p-1 text-xs border-gray-300">
+                                    <span class="text-[10px] text-slate-500 flex-1">捕捉工廠</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <input type="number" id="capexStoragePct" value="20" class="w-14 border rounded p-1 text-xs border-gray-300">
+                                    <span class="text-[10px] text-slate-500 flex-1">儲罐灌注站</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <input type="number" id="capexCivilPct" value="10" class="w-14 border rounded p-1 text-xs border-gray-300">
+                                    <span class="text-[10px] text-slate-500 flex-1">土建系統整合</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600">ISO Tank 物流費 (元/車次)</label>
+                                <input type="number" id="logisticsCost" value="30000" class="mt-1 block w-full border-gray-300 rounded p-1 text-sm border">
+                                <p class="text-[10px] text-slate-500 mt-1">含車輛租賃、專業司機、危險品申報及過磅費</p>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600">我國捕捉成本基準 (元/噸)</label>
+                                <input type="number" id="localCaptureCost" value="3000" class="mt-1 block w-full border-gray-300 rounded p-1 text-sm border">
+                                <p class="text-[10px] text-slate-500 mt-1">化學捕捉、電力及維運費用平均成本</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Dashboard -->
+            <div class="lg:col-span-2 space-y-6">
+                
+                <!-- 當前試算結果總覽 -->
+                <div class="card summary-card p-8 flex flex-col md:flex-row justify-between items-end relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -mr-20 -mt-20"></div>
+                    <div class="flex flex-col z-10">
+                        <span id="summaryTitle" class="text-slate-400 text-sm font-medium mb-2 tracking-wide uppercase">預算限定推估容量</span>
+                        <div class="flex flex-col items-start">
+                            <div class="flex items-baseline space-x-2">
+                                <span id="mainValDisplay" class="text-6xl font-bold text-blue-400">0.00</span>
+                                <span id="mainUnitDisplay" class="text-2xl text-slate-300 font-medium">萬噸/年</span>
+                            </div>
+                            <div id="targetYuanRemark" class="hidden text-slate-400 text-sm mt-1 font-medium bg-white/10 px-2 py-0.5 rounded"></div>
+                        </div>
+                    </div>
+                    <div class="mt-6 md:mt-0 text-right flex flex-col z-10">
+                        <span class="text-slate-400 text-sm font-medium mb-1 tracking-wide">總捕捉量 (計畫期間)</span>
+                        <div class="flex items-baseline justify-end space-x-1">
+                            <span id="lifeValDisplay" class="text-3xl font-bold text-emerald-400">0.0</span>
+                            <span class="text-xl text-emerald-400 font-medium">萬噸</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="card p-5 border-t-4 border-emerald-500 shadow-sm">
+                        <div class="metric-label mb-1">資本門總額 (CAPEX)</div>
+                        <div id="valCapex" class="text-xl font-bold text-slate-800">0 仟元</div>
+                        <div id="valCapexRemark" class="text-[11px] text-slate-500 font-bold mt-1">備註：相當於 0.00 億元</div>
+                        <div class="text-[10px] text-emerald-600 mt-1 font-medium">硬體建置與整合工程費用</div>
+                    </div>
+                    <div class="card p-5 border-t-4 border-orange-500 shadow-sm">
+                        <div class="metric-label mb-1">經常門總額 (OPEX)</div>
+                        <div id="valOpex" class="text-xl font-bold text-slate-800">0 仟元</div>
+                        <div id="valOpexRemark" class="text-[11px] text-slate-500 font-bold mt-1">備註：相當於 0.00 億元</div>
+                        <div class="text-[10px] text-orange-600 mt-1 font-medium">營運維護與化學吸收劑支出</div>
+                    </div>
+                    <div class="card p-5 border-t-4 border-purple-500 shadow-sm">
+                        <div class="metric-label mb-1">每噸捕捉成本 (LCOE)</div>
+                        <div id="valLcoe" class="text-xl font-bold text-slate-800">NT$ 0</div>
+                        <div id="valLcoeRemark" class="text-[10px] text-slate-500 font-bold mt-1">計算方式：總預算/總捕捉量 (計畫期間)</div> 
+                        <div class="text-[10px] text-purple-600 mt-1 font-medium">每公噸減碳平均單位成本</div>
+                    </div>
+                </div>
+
+                <!-- 預算結構分析區 -->
+                <div class="card p-6 shadow-sm min-h-[550px] flex flex-col">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between mb-6">
+                        <h3 class="text-lg font-bold text-slate-700 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
+                            預算結構與資源分配分析
+                        </h3>
+                        <!-- 物流調度資訊欄 -->
+                        <div id="logisticsInfo" class="mt-2 md:mt-0 px-4 py-2 bg-blue-50 border border-blue-100 rounded-lg text-blue-800 text-xs font-bold flex flex-col items-center">
+                            <div>ISO Tank 槽車調度：<span id="valYearlyTrips">0</span> 車次/年(計畫營運期間)</div>
+                            <div class="text-[9px] font-normal opacity-70">ISO Tank 槽車容量為 20 噸/車</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 環圈圖中心定位容器 -->
+                    <div class="flex-1 relative flex flex-col items-center justify-center overflow-hidden">
+                        <div class="w-full h-[320px] relative flex items-center justify-center">
+                            <canvas id="budgetChart"></canvas>
+                            
+                            <!-- 數據看板：使用絕對居中 -->
+                            <div id="chartCenterLabels" class="absolute pointer-events-none hidden flex flex-col items-center justify-center text-center top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[150px]">
+                                <div id="centerTotal" class="text-slate-800 text-[13px] font-black leading-none border-b-2 border-slate-300 pb-2 mb-2 w-full">總金額：0 億元</div>
+                                <div id="centerCapex" class="text-emerald-700 text-[10px] font-bold leading-relaxed mb-0.5">CAPEX：0 億元</div>
+                                <div id="centerOpex" class="text-orange-700 text-[10px] font-bold leading-relaxed">OPEX：0 億元</div>
+                            </div>
+                        </div>
+
+                        <!-- 自定義圖例：強製上下分列 -->
+                        <div id="customLegend" class="mt-6 w-full flex flex-col items-center space-y-3">
+                            <!-- CAPEX Row -->
+                            <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 px-4 border-b border-slate-100 pb-3 w-full">
+                                <div id="legPlant" class="text-[11px] text-slate-600 flex items-center"><span class="legend-dot" style="background:#059669"></span>捕捉工廠建置: <span class="font-bold ml-1" id="legPlantVal">0</span></div>
+                                <div id="legStorage" class="text-[11px] text-slate-600 flex items-center"><span class="legend-dot" style="background:#10b981"></span>儲罐灌注站: <span class="font-bold ml-1" id="legStorageVal">0</span></div>
+                                <div id="legCivil" class="text-[11px] text-slate-600 flex items-center"><span class="legend-dot" style="background:#6ee7b7"></span>土建系統整合: <span class="font-bold ml-1" id="legCivilVal">0</span></div>
+                            </div>
+                            <!-- OPEX Row -->
+                            <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 px-4 w-full">
+                                <div id="legLogistics" class="text-[11px] text-slate-600 flex items-center"><span class="legend-dot" style="background:#f59e0b"></span>ISO Tank 物流費: <span class="font-bold ml-1" id="legLogisticsVal">0</span></div>
+                                <div id="legCapture" class="text-[11px] text-slate-600 flex items-center"><span class="legend-dot" style="background:#d97706"></span>碳捕捉總成本: <span class="font-bold ml-1" id="legCaptureVal">0</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comparison Table -->
+                <div class="card overflow-x-auto shadow-sm">
+                    <table class="comparison-table divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="w-[22%] px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">評估維度</th>
+                                <th class="w-[26%] px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">BD3 模型</th>
+                                <th class="w-[26%] px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Petra Nova 模型</th>
+                                <th class="w-[26%] px-4 py-3 text-left text-xs font-bold text-blue-600 uppercase tracking-wider">自定義推估</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200 text-[11px]">
+                            <tr>
+                                <td class="px-4 py-4 font-bold text-gray-900 bg-slate-50">碳捕捉技術</td>
+                                <td class="px-4 py-4 text-slate-600 bg-slate-50 leading-relaxed">Shell Cansolv 開發先進胺基溶劑吸收技術，搭配使用專利吸收溶劑。</td>
+                                <td class="px-4 py-4 text-slate-600 bg-slate-50 leading-relaxed">三菱重工 (MHI) KM-CDR Process® 先進胺基捕捉技術，搭配 KS-1™ 溶劑。</td>
+                                <td id="tableTechEst" class="px-4 py-4 bg-blue-50 italic text-slate-400 text-center">-</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-4 font-bold text-gray-900">建置成本 (NTD/噸-年)</td>
+                                <td class="px-4 py-4">41,850</td>
+                                <td class="px-4 py-4">31,000</td>
+                                <td id="tableCapexEst" class="px-4 py-4 font-bold text-blue-600">-</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-4 font-bold text-gray-900">捕捉維運 (NTD/噸)</td>
+                                <td class="px-4 py-4">1,860</td>
+                                <td class="px-4 py-4">1,395</td>
+                                <td id="tableOpexEst" class="px-4 py-4 font-bold text-blue-600">-</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-4 font-bold text-gray-900 bg-slate-50">設計捕捉規模</td>
+                                <td class="px-4 py-4 bg-slate-50">100 萬噸/年</td>
+                                <td class="px-4 py-4 bg-slate-50">140 萬噸/年</td>
+                                <td id="tableScaleEst" class="px-4 py-4 bg-blue-50 font-bold text-blue-600">-</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-4 font-bold text-gray-900">基準投資金額</td>
+                                <td class="px-4 py-4 font-bold">NT$ 334.5 億</td>
+                                <td class="px-4 py-4 font-bold">NT$ 310.0 億</td>
+                                <td id="tableInvestEst" class="px-4 py-4 font-bold text-blue-600">-</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-4 font-bold text-gray-900 bg-slate-50">建設工期</td>
+                                <td class="px-4 py-4 bg-slate-50">2 年</td>
+                                <td class="px-4 py-4 bg-slate-50">2 年</td>
+                                <td id="tableConstEst" class="px-4 py-4 bg-blue-50 font-bold text-blue-600">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 研析提醒區 -->
+                <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 text-[11px] text-slate-700 flex items-start shadow-sm">
+                    <svg class="h-4 w-4 text-blue-500 mr-2 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                        <p class="font-bold mb-2 text-slate-900 text-sm">研析提醒</p>
+                        <div class="space-y-2 leading-relaxed text-slate-600 text-[11px]">
+                            <p>1. <b>BD3 模型經費計算</b>：包含對原有燃煤發電廠之翻新與升級 (50%)、新建 carbon capture 工廠 (30%)、排放控制與效率升級 (20%)。</p>
+                            <p>2. <b>Petra Nova 模型經費計算</b>：包含投入捕捉設施及專屬「汽電共生廠」 (60%)、前期營運管理成本與 CO2 輸送管線及油田基礎設施升級等費用 (40%)。</p>
+                            <p>3. 本試算採用 <b>1 USD = 31 TWD</b> 及 <b>1 CAD = 22.8 TWD</b>。推估模型工期：規模 &gt; 10 萬噸需 2 年，小規模需 1 年。</p>
+                            <p>4. <b>單位建置成本 (BD3) 推估</b>：340 億 x 30% / 100 萬噸/年 = 10,200 台幣/噸-年</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const EX_RATE = 31; 
+        const BENCHMARKS = {
+            BD3: { unitCapex: 1350, unitOpex: 60, name: "Boundary Dam 3" },
+            PetraNova: { unitCapex: 1000, unitOpex: 45, name: "Petra Nova" }
+        };
+
+        let currentMode = 'BUDGET'; 
+        let chart = null;
+
+        const els = {
+            inputBudget: document.getElementById('inputTotalBudget'),
+            sliderBudget: document.getElementById('sliderTotalBudget'),
+            inputCapture: document.getElementById('inputTargetCapture'),
+            sliderCapture: document.getElementById('sliderTargetCapture'),
+            inputYears: document.getElementById('inputYears'),
+            sliderYears: document.getElementById('sliderYears'),
+            budgetRemark: document.getElementById('dynamicBudgetRemark'),
+            
+            summaryTitle: document.getElementById('summaryTitle'),
+            mainVal: document.getElementById('mainValDisplay'),
+            mainUnit: document.getElementById('mainUnitDisplay'),
+            lifeVal: document.getElementById('lifeValDisplay'),
+            targetYuanRemark: document.getElementById('targetYuanRemark'),
+            
+            valCapex: document.getElementById('valCapex'),
+            valCapexRemark: document.getElementById('valCapexRemark'),
+            valOpex: document.getElementById('valOpex'),
+            valOpexRemark: document.getElementById('valOpexRemark'),
+            valLcoe: document.getElementById('valLcoe'),
+            valYearlyTrips: document.getElementById('valYearlyTrips'),
+
+            estimateParams: document.getElementById('estimateParams'),
+            customUnitCapex: document.getElementById('customUnitCapex'),
+            logisticsCost: document.getElementById('logisticsCost'),
+            localCaptureCost: document.getElementById('localCaptureCost'),
+            capexPlantPct: document.getElementById('capexPlantPct'),
+            capexStoragePct: document.getElementById('capexStoragePct'),
+            capexCivilPct: document.getElementById('capexCivilPct'),
+
+            chartCenterLabels: document.getElementById('chartCenterLabels'),
+            centerTotal: document.getElementById('centerTotal'),
+            centerCapex: document.getElementById('centerCapex'),
+            centerOpex: document.getElementById('centerOpex'),
+
+            // 自定義圖例元素
+            customLegend: document.getElementById('customLegend'),
+            legPlant: document.getElementById('legPlant'),
+            legStorage: document.getElementById('legStorage'),
+            legCivil: document.getElementById('legCivil'),
+            legLogistics: document.getElementById('legLogistics'),
+            legCapture: document.getElementById('legCapture'),
+            legPlantVal: document.getElementById('legPlantVal'),
+            legStorageVal: document.getElementById('legStorageVal'),
+            legCivilVal: document.getElementById('legCivilVal'),
+            legLogisticsVal: document.getElementById('legLogisticsVal'),
+            legCaptureVal: document.getElementById('legCaptureVal')
+        };
+
+        function formatK(val) { return Math.round(val).toLocaleString(); }
+        function formatYi(val) { return (val / 100000000).toFixed(2); }
+
+        function calculate() {
+            const benchmarkKey = document.querySelector('input[name="benchmark"]:checked').value;
+            const years = parseInt(els.inputYears.value) || 1;
+            let unitCapexTwd, unitOpexTwd, constTime;
+            let totalBudgetTwd, annualCaptureTons, capexTwd, opexTwd;
+
+            if (benchmarkKey === 'ESTIMATE') {
+                els.estimateParams.classList.remove('hidden');
+                const customCapex = parseFloat(els.customUnitCapex.value) || 10200;
+                const logCost = parseFloat(els.logisticsCost.value) || 30000;
+                const localCost = parseFloat(els.localCaptureCost.value) || 3000;
+                unitOpexTwd = (logCost / 20) + localCost;
+                unitCapexTwd = customCapex;
+
+                if (currentMode === 'BUDGET') {
+                    totalBudgetTwd = parseFloat(els.inputBudget.value) * 1000;
+                    constTime = 2;
+                    let opY = Math.max(0, years - constTime);
+                    annualCaptureTons = totalBudgetTwd / (unitCapexTwd + (unitOpexTwd * opY));
+                    if (annualCaptureTons <= 100000) {
+                        constTime = 1; opY = Math.max(0, years - constTime);
+                        annualCaptureTons = totalBudgetTwd / (unitCapexTwd + (unitOpexTwd * opY));
+                    }
+                } else {
+                    annualCaptureTons = parseFloat(els.inputCapture.value) * 10000;
+                    constTime = (annualCaptureTons > 100000) ? 2 : 1;
+                    const opY = Math.max(0, years - constTime);
+                    capexTwd = annualCaptureTons * unitCapexTwd;
+                    opexTwd = annualCaptureTons * unitOpexTwd * opY;
+                    totalBudgetTwd = capexTwd + opexTwd;
+                }
+            } else {
+                els.estimateParams.classList.add('hidden');
+                const data = BENCHMARKS[benchmarkKey];
+                unitCapexTwd = data.unitCapex * EX_RATE; 
+                unitOpexTwd = data.unitOpex * EX_RATE;   
+                constTime = 2;
+                if (currentMode === 'BUDGET') {
+                    totalBudgetTwd = parseFloat(els.inputBudget.value) * 1000; 
+                    annualCaptureTons = totalBudgetTwd / (unitCapexTwd + (unitOpexTwd * (years - constTime)));
+                } else {
+                    annualCaptureTons = parseFloat(els.inputCapture.value) * 10000;
+                    totalBudgetTwd = (annualCaptureTons * unitCapexTwd) + (annualCaptureTons * unitOpexTwd * (years - constTime));
+                }
+            }
+
+            capexTwd = annualCaptureTons * unitCapexTwd;
+            opexTwd = annualCaptureTons * unitOpexTwd * Math.max(0, years - constTime);
+            const lcoe = totalBudgetTwd / (annualCaptureTons * (years - constTime) || 1);
+            updateUI(annualCaptureTons, totalBudgetTwd, capexTwd, opexTwd, lcoe, years, constTime, benchmarkKey);
+        }
+
+        function updateUI(capacity, total, capex, opex, lcoe, years, constTime, benchmarkKey) {
+            const capWan = capacity / 10000;
+            const opY = Math.max(0, years - constTime);
+            const lifeCapWan = (capacity * opY) / 10000;
+            
+            els.budgetRemark.innerText = `註：${formatK(total/1000)} 仟元 = ${formatYi(total)} 億元`;
+
+            if (currentMode === 'BUDGET') {
+                els.summaryTitle.innerText = "預算限定推估容量";
+                els.mainVal.innerText = capWan.toFixed(2);
+                els.mainUnit.innerText = "萬噸/年";
+                els.targetYuanRemark.classList.add('hidden');
+            } else {
+                els.summaryTitle.innerText = "目標所需總經費";
+                els.mainVal.innerText = formatK(total / 1000);
+                els.mainUnit.innerText = "仟元";
+                els.targetYuanRemark.innerText = `相當於 ${formatYi(total)} 億元`;
+                els.targetYuanRemark.classList.remove('hidden');
+            }
+            els.lifeVal.innerText = lifeCapWan.toFixed(1);
+
+            els.valCapex.innerText = `${formatK(capex / 1000)} 仟元`;
+            els.valCapexRemark.innerText = `備註：相當於 ${formatYi(capex)} 億元`;
+            els.valOpex.innerText = `${formatK(opex / 1000)} 仟元`;
+            els.valOpexRemark.innerText = `備註：相當於 ${formatYi(opex)} 億元`;
+            els.valLcoe.innerText = `NT$ ${formatK(lcoe)}`;
+            
+            const yearlyTrips = Math.floor(capacity / 20);
+            els.valYearlyTrips.innerText = yearlyTrips.toLocaleString();
+
+            if (benchmarkKey === 'ESTIMATE') {
+                document.getElementById('tableCapexEst').innerText = `NT$ ${formatK(els.customUnitCapex.value)}`;
+                document.getElementById('tableOpexEst').innerText = `NT$ ${formatK((els.logisticsCost.value / 20) + parseFloat(els.localCaptureCost.value))}`;
+                document.getElementById('tableScaleEst').innerText = `${capWan.toFixed(2)} 萬噸/年`;
+                document.getElementById('tableInvestEst').innerText = `NT$ ${formatYi(total)} 億`;
+                document.getElementById('tableConstEst').innerText = `${constTime} 年`;
+                document.getElementById('tableTechEst').innerText = ""; 
+
+                els.chartCenterLabels.classList.remove('hidden');
+                els.centerTotal.innerText = `總金額：${formatYi(total)} 億元`;
+                els.centerCapex.innerText = `CAPEX：${formatYi(capex)} 億元`;
+                els.centerOpex.innerText = `OPEX：${formatYi(opex)} 億元`;
+
+                // 更新自定義圖例內容
+                const p1 = parseFloat(els.capexPlantPct.value) / 100;
+                const p2 = parseFloat(els.capexStoragePct.value) / 100;
+                const p3 = parseFloat(els.capexCivilPct.value) / 100;
+                const unitOpexVal = (parseFloat(els.logisticsCost.value) / 20) + parseFloat(els.localCaptureCost.value);
+                const logPct = (parseFloat(els.logisticsCost.value) / 20) / (unitOpexVal || 1);
+                
+                els.legPlantVal.innerText = `NT$ ${formatYi(capex * p1)} 億`;
+                els.legStorageVal.innerText = `NT$ ${formatYi(capex * p2)} 億`;
+                els.legCivilVal.innerText = `NT$ ${formatYi(capex * p3)} 億`;
+                els.legLogisticsVal.innerText = `NT$ ${formatYi(opex * logPct)} 億`;
+                els.legCaptureVal.innerText = `NT$ ${formatYi(opex * (1-logPct))} 億`;
+                els.customLegend.classList.remove('hidden');
+            } else {
+                document.getElementById('tableTechEst').innerText = "-";
+                els.chartCenterLabels.classList.add('hidden');
+                els.customLegend.classList.add('hidden');
+            }
+
+            updateChart(capex, opex, benchmarkKey);
+        }
+
+        function updateChart(capex, opex, benchmarkKey) {
+            const ctx = document.getElementById('budgetChart').getContext('2d');
+            if (chart) chart.destroy();
+
+            let dataSet = [];
+            let colors = [];
+
+            if (benchmarkKey === 'ESTIMATE') {
+                const p1 = parseFloat(els.capexPlantPct.value) / 100;
+                const p2 = parseFloat(els.capexStoragePct.value) / 100;
+                const p3 = parseFloat(els.capexCivilPct.value) / 100;
+                const unitOpexVal = (parseFloat(els.logisticsCost.value) / 20) + parseFloat(els.localCaptureCost.value);
+                const logPct = (parseFloat(els.logisticsCost.value) / 20) / (unitOpexVal || 1);
+                
+                dataSet = [capex * p1, capex * p2, capex * p3, opex * logPct, opex * (1-logPct)];
+                colors = ['#059669', '#10b981', '#6ee7b7', '#f59e0b', '#d97706'];
+            } else {
+                dataSet = [capex, opex];
+                colors = ['#10b981', '#f59e0b'];
+            }
+
+            chart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: dataSet,
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        hoverOffset: 15
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false } // 禁用內建圖例，使用自定義 HTML 圖例
+                    },
+                    cutout: '72%'
+                }
+            });
+        }
+
+        function toggleMode(mode) {
+            currentMode = mode;
+            document.getElementById('modeBudget').classList.toggle('bg-white', mode === 'BUDGET');
+            document.getElementById('modeBudget').classList.toggle('text-blue-600', mode === 'BUDGET');
+            document.getElementById('modeTarget').classList.toggle('bg-white', mode === 'TARGET');
+            document.getElementById('modeTarget').classList.toggle('text-blue-600', mode === 'TARGET');
+            document.getElementById('inputBudgetContainer').classList.toggle('hidden', mode !== 'BUDGET');
+            document.getElementById('inputTargetContainer').classList.toggle('hidden', mode === 'BUDGET');
+            calculate();
+        }
+
+        function sync(inp, sld) {
+            inp.oninput = () => { sld.value = inp.value; calculate(); };
+            sld.oninput = () => { inp.value = sld.value; calculate(); };
+        }
+
+        document.getElementById('modeBudget').onclick = () => toggleMode('BUDGET');
+        document.getElementById('modeTarget').onclick = () => toggleMode('TARGET');
+        sync(els.inputBudget, els.sliderBudget);
+        sync(els.inputCapture, els.sliderCapture);
+        sync(els.inputYears, els.sliderYears);
+
+        [els.customUnitCapex, els.logisticsCost, els.localCaptureCost, els.capexPlantPct, els.capexStoragePct, els.capexCivilPct].forEach(el => {
+            el.oninput = calculate;
+        });
+
+        document.querySelectorAll('input[name="benchmark"]').forEach(radio => {
+            radio.onchange = () => {
+                ['labelBD3', 'labelPetra', 'labelEstimate'].forEach(id => {
+                    document.getElementById(id).className = 'flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors border-gray-200';
+                });
+                const selectedId = `label${radio.value === 'ESTIMATE' ? 'Estimate' : (radio.value === 'BD3' ? 'BD3' : 'Petra')}`;
+                document.getElementById(selectedId).className = 'flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors border-blue-200 bg-blue-50';
+                calculate();
+            };
+        });
+
+        window.onload = calculate;
+    </script>
+</body>
+</html>
