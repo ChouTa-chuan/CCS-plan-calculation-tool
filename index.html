@@ -63,7 +63,7 @@
         <header class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between border-b border-gray-300 pb-6">
             <div>
                 <h1 class="text-3xl font-bold text-slate-800 text-pretty">CCS 補助計畫「目標與規模」決策支援工具</h1>
-                <p class="text-slate-500 mt-1">決策支援工具 v1.16 (Technical Labeling Edition)</p>
+                <p class="text-slate-500 mt-1">決策支援工具 v1.17 (Enhanced Technical Specs Edition)</p>
             </div>
             <div class="mt-4 md:mt-0 flex space-x-2">
                 <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">決策支援</span>
@@ -97,6 +97,7 @@
                         <div id="inputTargetContainer" class="hidden">
                             <label class="block text-sm font-bold text-gray-700">目標捕捉量 (萬公噸/年)</label>
                             <input type="number" id="inputTargetCapture" value="50" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border">
+                            <p id="dynamicCaptureDailyRemark" class="text-[11px] text-blue-600 font-medium mt-1">約等於 1,369 公噸/日</p>
                             <input type="range" id="sliderTargetCapture" min="1" max="500" step="1" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-3 slider-thumb">
                         </div>
 
@@ -145,7 +146,7 @@
                                 <label class="block text-[11px] font-bold text-slate-600">CAPEX 占比分配 (%)</label>
                                 <div class="flex items-center space-x-2">
                                     <input type="number" id="capexPlantPct" value="70" class="w-14 border rounded p-1 text-xs border-gray-300">
-                                    <span class="text-[10px] text-slate-500 flex-1">碳捕捉工廠</span>
+                                    <span class="text-[10px] text-slate-500 flex-1">碳捕捉工廠(含液化系統)</span>
                                 </div>
                                 <div class="flex items-center space-x-2">
                                     <input type="number" id="capexStoragePct" value="20" class="w-14 border rounded p-1 text-xs border-gray-300">
@@ -231,12 +232,10 @@
                         </div>
                     </div>
                     
-                    <!-- 環圈圖中心定位容器：確保圖表與文字置中 -->
                     <div class="flex-1 relative flex flex-col items-center justify-center overflow-hidden">
                         <div class="w-full h-[320px] relative flex items-center justify-center">
                             <canvas id="budgetChart"></canvas>
                             
-                            <!-- 數據看板 -->
                             <div id="chartCenterLabels" class="absolute pointer-events-none flex flex-col items-center justify-center text-center top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[150px]">
                                 <div id="centerTotal" class="text-slate-800 text-[13px] font-black leading-none border-b-2 border-slate-300 pb-2 mb-2 w-full">總金額：0 億元</div>
                                 <div id="centerCapex" class="text-emerald-700 text-[10px] font-bold leading-relaxed mb-0.5">CAPEX：0 億元</div>
@@ -246,14 +245,8 @@
 
                         <!-- 自定義圖例 -->
                         <div id="customLegend" class="mt-6 w-full flex flex-col items-center space-y-3 px-4">
-                            <!-- CAPEX Group -->
-                            <div id="legendCapexRow" class="flex flex-wrap justify-center gap-x-6 gap-y-2 border-b border-slate-100 pb-3 w-full">
-                                <!-- 動態填充 -->
-                            </div>
-                            <!-- OPEX Group -->
-                            <div id="legendOpexRow" class="flex flex-wrap justify-center gap-x-6 gap-y-2 w-full">
-                                <!-- 動態填充 -->
-                            </div>
+                            <div id="legendCapexRow" class="flex flex-wrap justify-center gap-x-6 gap-y-2 border-b border-slate-100 pb-3 w-full"></div>
+                            <div id="legendOpexRow" class="flex flex-wrap justify-center gap-x-6 gap-y-2 w-full"></div>
                         </div>
                     </div>
                 </div>
@@ -328,7 +321,6 @@
             </div>
         </div>
 
-        <!-- 編輯註記 Footer -->
         <footer class="mt-8 text-right">
             <p class="text-[10px] text-slate-400">由TRI 周大詮 編輯更新</p>
         </footer>
@@ -349,6 +341,7 @@
             sliderBudget: document.getElementById('sliderTotalBudget'),
             inputCapture: document.getElementById('inputTargetCapture'),
             sliderCapture: document.getElementById('sliderTargetCapture'),
+            captureDailyRemark: document.getElementById('dynamicCaptureDailyRemark'),
             inputYears: document.getElementById('inputYears'),
             sliderYears: document.getElementById('sliderYears'),
             budgetRemark: document.getElementById('dynamicBudgetRemark'),
@@ -445,6 +438,11 @@
             
             els.budgetRemark.innerText = `註：${formatK(total/1000)} 仟元 = ${formatYi(total)} 億元`;
 
+            // 更新每日捕捉量備註 (萬公噸/年 -> 公噸/日)
+            const targetWanYear = parseFloat(els.inputCapture.value);
+            const dailyTons = (targetWanYear * 10000) / 365;
+            els.captureDailyRemark.innerText = `約等於 ${Math.round(dailyTons).toLocaleString()} 公噸/日`;
+
             if (currentMode === 'BUDGET') {
                 els.summaryTitle.innerText = "預算限定推估容量";
                 els.mainVal.innerText = capWan.toFixed(2);
@@ -468,17 +466,16 @@
             const yearlyTrips = Math.floor(capacity / 20);
             els.valYearlyTrips.innerText = yearlyTrips.toLocaleString();
 
-            // 更新中心面板
             els.centerTotal.innerText = `總金額：${formatYi(total)} 億元`;
             els.centerCapex.innerText = `CAPEX：${formatYi(capex)} 億元`;
             els.centerOpex.innerText = `OPEX：${formatYi(opex)} 億元`;
 
-            // 更新分層圖例
             updateGroupedLegend(capex, opex, benchmarkKey);
 
             if (benchmarkKey === 'ESTIMATE') {
                 document.getElementById('tableCapexEst').innerText = `NT$ ${formatK(els.customUnitCapex.value)}`;
-                document.getElementById('tableOpexEst').innerText = `NT$ ${formatK((els.logisticsCost.value / 20) + parseFloat(els.localCaptureCost.value))}`;
+                const unitOpexVal = (parseFloat(els.logisticsCost.value) / 20) + parseFloat(els.localCaptureCost.value);
+                document.getElementById('tableOpexEst').innerText = `NT$ ${formatK(unitOpexVal)}`;
                 document.getElementById('tableScaleEst').innerText = `${capWan.toFixed(2)} 萬噸/年`;
                 document.getElementById('tableInvestEst').innerText = `NT$ ${formatYi(total)} 億`;
                 document.getElementById('tableConstEst').innerText = `${constTime} 年`;
@@ -499,7 +496,7 @@
                 const logPct = (parseFloat(els.logisticsCost.value) / 20) / (unitOpexVal || 1);
 
                 els.legendCapexRow.innerHTML = `
-                    <div class="text-[11px] text-slate-600 flex items-center"><span class="legend-dot" style="background:#059669"></span>碳捕捉工廠建置: <span class="font-bold ml-1">NT$ ${formatYi(capex * p1)} 億</span></div>
+                    <div class="text-[11px] text-slate-600 flex items-center"><span class="legend-dot" style="background:#059669"></span>碳捕捉工廠(含液化系統)建置: <span class="font-bold ml-1">NT$ ${formatYi(capex * p1)} 億</span></div>
                     <div class="text-[11px] text-slate-600 flex items-center"><span class="legend-dot" style="background:#10b981"></span>LCO2低溫儲罐與灌注站: <span class="font-bold ml-1">NT$ ${formatYi(capex * p2)} 億</span></div>
                     <div class="text-[11px] text-slate-600 flex items-center"><span class="legend-dot" style="background:#6ee7b7"></span>土建與系統整合: <span class="font-bold ml-1">NT$ ${formatYi(capex * p3)} 億</span></div>
                 `;
