@@ -63,7 +63,7 @@
         <header class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between border-b border-gray-300 pb-6">
             <div>
                 <h1 class="text-3xl font-bold text-slate-800 text-pretty">CCS 補助計畫「目標與規模」決策支援工具</h1>
-                <p class="text-slate-500 mt-1">決策支援工具 v1.14 (Full Symmetrical Dashboard Edition)</p>
+                <p class="text-slate-500 mt-1">決策支援工具 v1.15 (Debugged & Aligned Edition)</p>
             </div>
             <div class="mt-4 md:mt-0 flex space-x-2">
                 <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">決策支援</span>
@@ -133,7 +133,7 @@
                             </div>
                         </div>
 
-                        <!-- 推估模型專用參數 (僅在推估模型時顯示) -->
+                        <!-- 推估模型客製化參數 -->
                         <div id="estimateParams" class="hidden p-4 bg-slate-100 rounded-lg border border-slate-300 space-y-4 shadow-inner">
                             <h3 class="text-sm font-bold text-blue-800 border-b border-blue-200 pb-1">推估模型客製化參數</h3>
                             <div>
@@ -231,12 +231,12 @@
                         </div>
                     </div>
                     
-                    <!-- 環圈圖中心定位容器：確保圖表與文字嚴格置中 -->
+                    <!-- 環圈圖中心定位容器：確保圖表與文字置中 -->
                     <div class="flex-1 relative flex flex-col items-center justify-center overflow-hidden">
                         <div class="w-full h-[320px] relative flex items-center justify-center">
                             <canvas id="budgetChart"></canvas>
                             
-                            <!-- 數據看板：使用絕對置中 -->
+                            <!-- 數據看板 -->
                             <div id="chartCenterLabels" class="absolute pointer-events-none flex flex-col items-center justify-center text-center top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[150px]">
                                 <div id="centerTotal" class="text-slate-800 text-[13px] font-black leading-none border-b-2 border-slate-300 pb-2 mb-2 w-full">總金額：0 億元</div>
                                 <div id="centerCapex" class="text-emerald-700 text-[10px] font-bold leading-relaxed mb-0.5">CAPEX：0 億元</div>
@@ -244,7 +244,7 @@
                             </div>
                         </div>
 
-                        <!-- 自定義圖例：強製分群分列呈現 -->
+                        <!-- 自定義圖例 -->
                         <div id="customLegend" class="mt-6 w-full flex flex-col items-center space-y-3 px-4">
                             <!-- CAPEX Group -->
                             <div id="legendCapexRow" class="flex flex-wrap justify-center gap-x-6 gap-y-2 border-b border-slate-100 pb-3 w-full">
@@ -405,7 +405,8 @@
                         annualCaptureTons = totalBudgetTwd / (unitCapexTwd + (unitOpexTwd * opY));
                     }
                 } else {
-                    annualCaptureTons = parseFloat(els.inputTargetCapture.value) * 10000;
+                    // 修復變數命名錯誤：使用 els.inputCapture 而非 els.inputTargetCapture
+                    annualCaptureTons = parseFloat(els.inputCapture.value) * 10000;
                     constTime = (annualCaptureTons > 100000) ? 2 : 1;
                     const opY = Math.max(0, years - constTime);
                     capexTwd = annualCaptureTons * unitCapexTwd;
@@ -422,7 +423,8 @@
                     totalBudgetTwd = parseFloat(els.inputBudget.value) * 1000; 
                     annualCaptureTons = totalBudgetTwd / (unitCapexTwd + (unitOpexTwd * (years - constTime)));
                 } else {
-                    annualCaptureTons = parseFloat(els.inputTargetCapture.value) * 10000;
+                    // 修復變數命名錯誤：使用 els.inputCapture 而非 els.inputTargetCapture
+                    annualCaptureTons = parseFloat(els.inputCapture.value) * 10000;
                     totalBudgetTwd = (annualCaptureTons * unitCapexTwd) + (annualCaptureTons * unitOpexTwd * (years - constTime));
                 }
             }
