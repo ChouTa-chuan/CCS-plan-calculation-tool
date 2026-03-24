@@ -63,7 +63,7 @@
         <header class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between border-b border-gray-300 pb-6">
             <div>
                 <h1 class="text-3xl font-bold text-slate-800 text-pretty">CCS 補助計畫「目標與規模」決策支援工具</h1>
-                <p class="text-slate-500 mt-1">決策支援工具 v1.15 (Debugged & Aligned Edition)</p>
+                <p class="text-slate-500 mt-1">決策支援工具 v1.16 (Technical Labeling Edition)</p>
             </div>
             <div class="mt-4 md:mt-0 flex space-x-2">
                 <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">決策支援</span>
@@ -145,15 +145,15 @@
                                 <label class="block text-[11px] font-bold text-slate-600">CAPEX 占比分配 (%)</label>
                                 <div class="flex items-center space-x-2">
                                     <input type="number" id="capexPlantPct" value="70" class="w-14 border rounded p-1 text-xs border-gray-300">
-                                    <span class="text-[10px] text-slate-500 flex-1">捕捉工廠</span>
+                                    <span class="text-[10px] text-slate-500 flex-1">碳捕捉工廠</span>
                                 </div>
                                 <div class="flex items-center space-x-2">
                                     <input type="number" id="capexStoragePct" value="20" class="w-14 border rounded p-1 text-xs border-gray-300">
-                                    <span class="text-[10px] text-slate-500 flex-1">儲罐灌注站</span>
+                                    <span class="text-[10px] text-slate-500 flex-1">LCO2低溫儲罐與灌注站</span>
                                 </div>
                                 <div class="flex items-center space-x-2">
                                     <input type="number" id="capexCivilPct" value="10" class="w-14 border rounded p-1 text-xs border-gray-300">
-                                    <span class="text-[10px] text-slate-500 flex-1">土建系統整合</span>
+                                    <span class="text-[10px] text-slate-500 flex-1">土建與系統整合</span>
                                 </div>
                             </div>
                             <div>
@@ -327,6 +327,11 @@
                 </div>
             </div>
         </div>
+
+        <!-- 編輯註記 Footer -->
+        <footer class="mt-8 text-right">
+            <p class="text-[10px] text-slate-400">由TRI 周大詮 編輯更新</p>
+        </footer>
     </div>
 
     <script>
@@ -405,7 +410,6 @@
                         annualCaptureTons = totalBudgetTwd / (unitCapexTwd + (unitOpexTwd * opY));
                     }
                 } else {
-                    // 修復變數命名錯誤：使用 els.inputCapture 而非 els.inputTargetCapture
                     annualCaptureTons = parseFloat(els.inputCapture.value) * 10000;
                     constTime = (annualCaptureTons > 100000) ? 2 : 1;
                     const opY = Math.max(0, years - constTime);
@@ -423,7 +427,6 @@
                     totalBudgetTwd = parseFloat(els.inputBudget.value) * 1000; 
                     annualCaptureTons = totalBudgetTwd / (unitCapexTwd + (unitOpexTwd * (years - constTime)));
                 } else {
-                    // 修復變數命名錯誤：使用 els.inputCapture 而非 els.inputTargetCapture
                     annualCaptureTons = parseFloat(els.inputCapture.value) * 10000;
                     totalBudgetTwd = (annualCaptureTons * unitCapexTwd) + (annualCaptureTons * unitOpexTwd * (years - constTime));
                 }
@@ -496,9 +499,9 @@
                 const logPct = (parseFloat(els.logisticsCost.value) / 20) / (unitOpexVal || 1);
 
                 els.legendCapexRow.innerHTML = `
-                    <div class="text-[11px] text-slate-600 flex items-center"><span class="legend-dot" style="background:#059669"></span>捕捉工廠建置: <span class="font-bold ml-1">NT$ ${formatYi(capex * p1)} 億</span></div>
-                    <div class="text-[11px] text-slate-600 flex items-center"><span class="legend-dot" style="background:#10b981"></span>儲罐灌注站: <span class="font-bold ml-1">NT$ ${formatYi(capex * p2)} 億</span></div>
-                    <div class="text-[11px] text-slate-600 flex items-center"><span class="legend-dot" style="background:#6ee7b7"></span>土建系統整合: <span class="font-bold ml-1">NT$ ${formatYi(capex * p3)} 億</span></div>
+                    <div class="text-[11px] text-slate-600 flex items-center"><span class="legend-dot" style="background:#059669"></span>碳捕捉工廠建置: <span class="font-bold ml-1">NT$ ${formatYi(capex * p1)} 億</span></div>
+                    <div class="text-[11px] text-slate-600 flex items-center"><span class="legend-dot" style="background:#10b981"></span>LCO2低溫儲罐與灌注站: <span class="font-bold ml-1">NT$ ${formatYi(capex * p2)} 億</span></div>
+                    <div class="text-[11px] text-slate-600 flex items-center"><span class="legend-dot" style="background:#6ee7b7"></span>土建與系統整合: <span class="font-bold ml-1">NT$ ${formatYi(capex * p3)} 億</span></div>
                 `;
                 els.legendOpexRow.innerHTML = `
                     <div class="text-[11px] text-slate-600 flex items-center"><span class="legend-dot" style="background:#f59e0b"></span>ISO Tank 物流費: <span class="font-bold ml-1">NT$ ${formatYi(opex * logPct)} 億</span></div>
